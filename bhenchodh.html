@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection Web App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        video {
+            width: 80%;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+        }
+
+        #canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Object Detection with TensorFlow.js</h1>
+
+    <label for="object-select">Select Object to Detect:</label>
+    <select id="object-select">
+        <option value="person">Person</option>
+        <option value="dog">Dog</option>
+        <option value="cat">Cat</option>
+    </select>
+
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
+
+    <!-- Load TensorFlow.js and the object detection model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <script>
+        const videoElement = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const objectSelect = document.getElementById('object-select');
+        const ctx = canvas.getContext('2d');
+        
+        let model;
+        let selectedObject = 'person';  // Default object to detect
+
+        // Load the COCO-SSD model for object detection
+        async function loadModel() {
+            model = await cocoSsd.load();
+            console.log("Model loaded.");
+            startVideoStream();
+        }
+
+        // Start the webcam stream
+        async function startVideoStream() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
+            videoElement.onloadedmetadata = () => {
+                videoElement.play();
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                detectObjects();
+            };
+        }
+
+        // Detect objects from the video feed
+        async function detectObjects() {
+            const predictions = await model.detect(videoElement);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Filter objects based on the selected class
+            predictions.forEach(prediction => {
+                if (prediction.class === selectedObject) {
+                    // Draw bounding box for the detected object
+                    ctx.beginPath();
+                    ctx.rect(...prediction.bbox);
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'green';
+                    ctx.fillStyle = 'green';
+                    ctx.stroke();
+                    ctx.fillText(
+                        `${prediction.class} (${Math.round(prediction.score * 100)}%)`, 
+                        prediction.bbox[0], prediction.bbox[1] - 10
+                    );
+                }
+            });
+
+            requestAnimationFrame(detectObjects);
+        }
+
+        // Update the selected object when the user changes the dropdown
+        objectSelect.addEventListener('change', (event) => {
+            selectedObject = event.target.value;
+            console.log(`Selected object: ${selectedObject}`);
+        });
+
+        // Initialize the app
+        loadModel();
+    </script>
+</body>
+</html>
